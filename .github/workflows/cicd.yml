@@ -77,7 +77,7 @@ jobs:
       - name: Conectar via SSH à EC2 privada para implantar e reiniciar a API
         run: |
           ssh -T -o StrictHostKeyChecking=no -i $HOME/deploy_key.pem ubuntu@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            scp -i deploy_key.pem deploy-FaceBlur/deploy.sql ubuntu@${{ secrets.IP_PRIVADO_EC2 }}:/home/ubuntu/deploy-FaceBlur/
+            scp -i deploy_key.pem deploy-FaceBlur/* ubuntu@${{ secrets.IP_PRIVADO_EC2 }}:/home/ubuntu/deploy-FaceBlur/
             scp -i deploy_key.pem deploy-FaceBlur/docker-scripts/* ubuntu@${{ secrets.IP_PRIVADO_EC2 }}:/home/ubuntu/deploy-FaceBlur/
             ssh -i deploy_key.pem ubuntu@${{ secrets.IP_PRIVADO_EC2 }} "sudo docker-compose -f /home/ubuntu/deploy-FaceBlur/docker-compose.yml up -d --build"
           EOF
