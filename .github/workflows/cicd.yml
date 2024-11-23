@@ -1,0 +1,83 @@
+name: Deploy FaceBlur
+
+'on':
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Atualização do código
+        uses: actions/checkout@v2
+
+      - name: Gerar artefato Github
+        uses: actions/upload-artifact@v4
+        with:
+          name: FaceBlur
+          path: ./*
+
+      - name: Gerar artefato Github com os arquivos docker
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-scripts
+          path: .github/docker-scripts/*
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperar artefato
+        uses: actions/download-artifact@v4
+        with:
+          name: FaceBlur
+          path: ./
+
+      - name: Recuperar docker-scripts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-scripts
+          path: ./docker-scripts/
+
+      - name: Enviar o FaceBlur p/ a EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ubuntu
+          key: ${{ secrets.ACCESS_WEBSERVER_KEY }}
+          source: ./deploy.sql
+          target: /home/ubuntu/deploy-FaceBlur/
+
+      - name: Enviar os docker-scripts p/ a EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ubuntu
+          key: ${{ secrets.ACCESS_WEBSERVER_KEY }}
+          source: ./docker-scripts/*
+          target: /home/ubuntu/deploy-FaceBlur/
+
+      - name: Criar arquivo .pem a partir da variável ACCESS_WEBSERVER_KEY e fazer o chmod 400 nele
+        id: geracao-arquivo-pem
+        run: |
+          echo "${{ secrets.ACCESS_WEBSERVER_KEY }}" >> $HOME/deploy_key.pem
+          chmod 400 $HOME/deploy_key.pem
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+            ssh-private-key: ${{ secrets.ACCESS_WEBSERVER_KEY }}
+
+      - name: Add deploy host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+    
+      - name: Conectar via SSH à EC2 privada para implantar e reiniciar a API
+        run: |
+          ssh -T -o StrictHostKeyChecking=no -i $HOME/deploy_key.pem ubuntu@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            scp -i deploy_key.pem deploy-FaceBlur/deploy.sql ubuntu@${{ secrets.IP_PRIVADO_EC2 }}:/home/ubuntu/deploy-FaceBlur/
+            scp -i deploy_key.pem deploy-FaceBlur/docker-scripts/* ubuntu@${{ secrets.IP_PRIVADO_EC2 }}:/home/ubuntu/deploy-FaceBlur/
+            ssh -i deploy_key.pem ubuntu@${{ secrets.IP_PRIVADO_EC2 }} "sudo docker-compose -f /home/ubuntu/deploy-FaceBlur/docker-compose.yml up -d --build"
+          EOF

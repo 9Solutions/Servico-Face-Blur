@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  python-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: python-container
+    networks:
+     - external_network
+    ports:
+      - "5520:5520"
+    restart: unless-stopped
+
+networks:
+  external_network:
+    external: true
