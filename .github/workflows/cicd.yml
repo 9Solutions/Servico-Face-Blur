@@ -48,7 +48,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.ACCESS_WEBSERVER_KEY }}
-          source: ./deploy.sql
+          source: ./*
           target: /home/ubuntu/deploy-FaceBlur/
 
       - name: Enviar os docker-scripts p/ a EC2
